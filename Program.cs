@@ -3,6 +3,12 @@ using McMaster.Extensions.CommandLineUtils;
 using System.Device.Gpio;
 using System.Device.Gpio.Drivers;
 
+// Gpiod uses line numbers to access gpio. The line numbers can be found with `gpioinfo` and cross referenced with the nvidia 
+// pinmux spreadsheet.
+// The pinmux spreadsheet can be found here: https://developer.nvidia.com/jetson-nano-pinmux-datasheet
+// Notes for personal use, these are free GPIO pins.
+// gpiochip1 127 -- BCM 17 -- J41 Pin 11
+// gpiochip1 112 -- BCM 18 -- J41 Pin 12
 
 [Command(Name = "test-gpio", Description = "test a range of logical gpio pins")]
 public class Program
@@ -24,7 +30,10 @@ public class Program
         Console.WriteLine("Starting Test");
         try
         {
+            Console.WriteLine($"Using GpioDeviceId: {GpioDeviceId}");
             Gpio = new GpioController(PinNumberingScheme.Logical, new LibGpiodDriver(GpioDeviceId));
+            Console.WriteLine($"Pincout: {Gpio.PinCount}");
+            Console.WriteLine($"Numbering Scheme: {Gpio.NumberingScheme}");
         }
         catch (Exception e)
         {
@@ -49,13 +58,21 @@ public class Program
         }
         else
         {
-            Gpio.SetPinMode(PinNumber, PinMode.Output);
-            for (var i = 0; i < 6; i++)
+            if (Gpio.IsPinModeSupported(PinNumber, PinMode.Output))
             {
-                Gpio.Write(PinNumber, PinValue.High);
-                Thread.Sleep(500);
-                Gpio.Write(PinNumber, PinValue.Low);
-                Thread.Sleep(500);
+                Gpio.SetPinMode(PinNumber, PinMode.Output);
+                for (var i = 0; i < 6; i++)
+                {
+                    Console.WriteLine($"Writing High/Low to Pin: {PinNumber}");
+                    Gpio.Write(PinNumber, PinValue.High);
+                    Thread.Sleep(500);
+                    Gpio.Write(PinNumber, PinValue.Low);
+                    Thread.Sleep(500);
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Pin {PinNumber} does not support Output");
             }
         }
         Gpio.ClosePin(PinNumber);
